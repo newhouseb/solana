@@ -92,7 +92,9 @@ fn install_if_missing(
     version: &str,
     url: &str,
     download_file_name: &str,
+    target_path: &Path,
 ) -> Result<(), String> {
+<<<<<<< HEAD
     // Check whether the package is already in ~/.cache/solana.
     // Download it and place in the proper location if not found.
     let home_dir = PathBuf::from(env::var("HOME").unwrap_or_else(|err| {
@@ -105,6 +107,24 @@ fn install_if_missing(
         .join(version)
         .join(package);
 
+=======
+    // Check whether the target path is an empty directory. This can
+    // happen if package download failed on previous run of
+    // cargo-build-bpf.  Remove the target_path directory in this
+    // case.
+    if target_path.is_dir()
+        && target_path
+            .read_dir()
+            .map_err(|err| err.to_string())?
+            .next()
+            .is_none()
+    {
+        fs::remove_dir(&target_path).map_err(|err| err.to_string())?;
+    }
+
+    // Check whether the package is already in ~/.cache/solana.
+    // Download it and place in the proper location if not found.
+>>>>>>> 55d19e61d (Make cargo-build-bpf clean up after failed installation of bpf-tools (#21143))
     if !target_path.is_dir()
         && !target_path
             .symlink_metadata()
@@ -142,7 +162,7 @@ fn install_if_missing(
     let source_path = source_base.join(package);
     // Check whether the correct symbolic link exists.
     let invalid_link = if let Ok(link_target) = source_path.read_link() {
-        if link_target != target_path {
+        if link_target.ne(target_path) {
             fs::remove_file(&source_path).map_err(|err| err.to_string())?;
             true
         } else {
@@ -430,14 +450,46 @@ fn build_bpf_package(config: &Config, target_directory: &Path, package: &cargo_m
     } else {
         "solana-bpf-tools-linux.tar.bz2"
     };
+
+    let home_dir = PathBuf::from(env::var("HOME").unwrap_or_else(|err| {
+        eprintln!("Can't get home directory path: {}", err);
+        exit(1);
+    }));
+    let version = "v1.18";
+    let package = "bpf-tools";
+    let target_path = home_dir
+        .join(".cache")
+        .join("solana")
+        .join(version)
+        .join(package);
     install_if_missing(
         config,
+<<<<<<< HEAD
         "bpf-tools",
         "v1.12",
+=======
+        package,
+        version,
+>>>>>>> 55d19e61d (Make cargo-build-bpf clean up after failed installation of bpf-tools (#21143))
         "https://github.com/solana-labs/bpf-tools/releases/download",
         bpf_tools_download_file_name,
+        &target_path,
     )
-    .expect("Failed to install bpf-tools");
+    .unwrap_or_else(|err| {
+        // The package version directory doesn't contain a valid
+        // installation, and it should be removed.
+        let target_path_parent = target_path.parent().expect("Invalid package path");
+        fs::remove_dir_all(&target_path_parent).unwrap_or_else(|err| {
+            eprintln!(
+                "Failed to remove {} while recovering from installation failure: {}",
+                target_path_parent.to_string_lossy(),
+                err,
+            );
+            exit(1);
+        });
+        eprintln!("Failed to install bpf-tools: {}", err);
+        exit(1);
+    });
     link_bpf_toolchain(config);
 
     let llvm_bin = config
