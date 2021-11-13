@@ -430,6 +430,21 @@ fn build_bpf_package(config: &Config, target_directory: &Path, package: &cargo_m
     } else {
         "solana-bpf-tools-linux.tar.bz2"
     };
+<<<<<<< HEAD
+=======
+
+    let home_dir = PathBuf::from(env::var("HOME").unwrap_or_else(|err| {
+        eprintln!("Can't get home directory path: {}", err);
+        exit(1);
+    }));
+    let version = "v1.19";
+    let package = "bpf-tools";
+    let target_path = home_dir
+        .join(".cache")
+        .join("solana")
+        .join(version)
+        .join(package);
+>>>>>>> 3f4f05865 (Bump bpf-tools to v1.19 (#21256))
     install_if_missing(
         config,
         "bpf-tools",
